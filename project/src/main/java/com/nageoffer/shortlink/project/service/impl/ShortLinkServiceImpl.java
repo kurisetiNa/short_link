@@ -73,6 +73,7 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     private final RedissonClient redissonClient;
     private final LinkLocaleStatsMapper linkLocaleStatsMapper;
     private final LinkOsStatsMapper linkOsStatsMapper;
+    private final LinkBrowserStatsMapper linkBrowserStatsMapper;
 
     @Value("${short-link.stats.locale.amap-key}")
     private String statsLocaleAmapKey;
@@ -393,6 +394,14 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
                         .date(currentDate)
                         .fullShortUrl(fullShortUrl)
                         .build();
+                LinkBrowserStatsDO linkBrowserStatsDO = LinkBrowserStatsDO.builder()
+                        .browser(LinkUtil.getBrowser(((HttpServletRequest) request)))
+                        .cnt(1)
+                        .gid(gid)
+                        .fullShortUrl(fullShortUrl)
+                        .date(currentDate)
+                        .build();
+                linkBrowserStatsMapper.shortLinkBrowserStats(linkBrowserStatsDO);
                 linkOsStatsMapper.shortLinkOsStats(linkOsStatsDO);
             }
 
