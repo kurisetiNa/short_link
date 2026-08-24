@@ -3,6 +3,9 @@ package com.nageoffer.shortlink.project.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
+import cn.hutool.http.HttpUtil;
+import cn.hutool.json.JSONObject;
+import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -13,9 +16,11 @@ import com.nageoffer.shortlink.project.common.convention.exception.ClientExcepti
 import com.nageoffer.shortlink.project.common.convention.exception.ServiceException;
 import com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum;
 import com.nageoffer.shortlink.project.dao.entity.LinkAccessStatsDO;
+import com.nageoffer.shortlink.project.dao.entity.LinkLocaleStatsDO;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkDO;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkGotoDO;
 import com.nageoffer.shortlink.project.dao.mapper.LinkAccessStatsMapper;
+import com.nageoffer.shortlink.project.dao.mapper.LinkLocaleStatsMapper;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkGotoMapper;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkMapper;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkCreateReqDTO;
@@ -34,6 +39,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -41,6 +47,7 @@ import org.jsoup.nodes.Element;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.dao.DuplicateKeyException;
@@ -55,6 +62,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.*;
+import static com.nageoffer.shortlink.project.common.constant.ShortLinkConstant.AMAP_REMOTE_URL;
 
 /**
  * 短链接接口实现层
@@ -69,6 +77,10 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     private final LinkAccessStatsMapper linkAccessStatsMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
+    private final LinkLocaleStatsMapper linkLocaleStatsMapper;
+
+    @Value("${short-link.stats.locale.amap-key}")
+    private String statsLocaleAmapKey;
 
     @Transactional(rollbackFor = Exception.class)
     @Override
@@ -357,6 +369,31 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
                     .weekday(currentDate.getDayOfWeek().getValue())
                     .build();
             linkAccessStatsMapper.shortLinkStats(linkAccessStatsDO);
+            Map<String,Object> localeParamMap=new HashMap<>();
+            localeParamMap.put("key",statsLocaleAmapKey);
+            localeParamMap.put("ip",remoteAddr);
+            String localeResultStr = HttpUtil.get(AMAP_REMOTE_URL, localeParamMap);
+            JSONObject localeResultObj = JSONUtil.parseObj(localeResultStr);
+            String infoCode = localeResultObj.getStr("infocode");
+            LinkLocaleStatsDO linkLocaleStatsDO;
+            if(StrUtil.isNotBlank(infoCode)&&StrUtil.equals(infoCode,"10000")){
+               String province=localeResultObj.getStr("province");
+               boolean unknownFlag =StrUtil.equals(province,"[]");
+               linkLocaleStatsDO = LinkLocaleStatsDO.builder()
+                        .fullShortUrl(fullShortUrl)
+                        .province(unknownFlag?"未知":province)
+                        .city(unknownFlag?"未知":localeResultObj.getStr("city"))
+                       .adcode(unknownFlag?"未知":localeResultObj.getStr("adcode"))
+                       .cnt(1)
+                       .country("china")
+                        .gid(gid)
+                        .date(currentDate)
+                        .build();
+
+                linkLocaleStatsMapper.shortLinkLocaleState(linkLocaleStatsDO);
+            }
+
+
         }catch (Throwable ex){
             log.error("短链接访问量统计异常",ex);
         }
