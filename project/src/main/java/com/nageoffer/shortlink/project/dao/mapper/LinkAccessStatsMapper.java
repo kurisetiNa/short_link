@@ -2,8 +2,12 @@ package com.nageoffer.shortlink.project.dao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.nageoffer.shortlink.project.dao.entity.LinkAccessStatsDO;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
 
 /**
  * 基础访问统计持久层。
@@ -26,4 +30,20 @@ public interface LinkAccessStatsMapper extends BaseMapper<LinkAccessStatsDO> {
             "uip = uip + #{linkAccessStats.uip}, " +
             "update_time = NOW()")
     void shortLinkStats(@Param("linkAccessStats") LinkAccessStatsDO linkAccessStats);
+
+    @Select("SELECT `date`, SUM(pv) pv, SUM(uv) uv, SUM(uip) uip " +
+            "FROM t_link_access_stats WHERE full_short_url = #{param.fullShortUrl} " +
+            "AND gid = #{param.gid} AND `date` BETWEEN #{param.startDate} AND #{param.endDate} " +
+            "GROUP BY `date` ORDER BY `date`")
+    List<LinkAccessStatsDO> listStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
+
+    @Select("SELECT `hour`, SUM(pv) pv FROM t_link_access_stats " +
+            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY `hour`")
+    List<LinkAccessStatsDO> listHourStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
+
+    @Select("SELECT `weekday`, SUM(pv) pv FROM t_link_access_stats " +
+            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY `weekday`")
+    List<LinkAccessStatsDO> listWeekdayStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 }

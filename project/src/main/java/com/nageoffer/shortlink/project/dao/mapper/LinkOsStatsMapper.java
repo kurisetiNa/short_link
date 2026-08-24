@@ -2,8 +2,13 @@ package com.nageoffer.shortlink.project.dao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.nageoffer.shortlink.project.dao.entity.LinkOsStatsDO;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 操作系统访问统计持久层。
@@ -23,4 +28,9 @@ public interface LinkOsStatsMapper extends BaseMapper<LinkOsStatsDO> {
             "cnt = cnt + #{linkOsStats.cnt}, " +
             "update_time = NOW()")
     void shortLinkOsStats(@Param("linkOsStats") LinkOsStatsDO linkOsStatsDO);
+
+    @Select("SELECT os, SUM(cnt) `count` FROM t_link_os_stats " +
+            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY os ORDER BY `count` DESC")
+    List<Map<String, Object>> listOsStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 }
