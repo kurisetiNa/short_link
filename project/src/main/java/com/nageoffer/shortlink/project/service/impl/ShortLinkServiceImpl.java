@@ -382,10 +382,12 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
             if(StrUtil.isNotBlank(infoCode)&&StrUtil.equals(infoCode,"10000")){
                String province=localeResultObj.getStr("province");
                boolean unknownFlag =StrUtil.equals(province,"[]");
+               String actualProvince;
+               String actualCity;
                linkLocaleStatsDO = LinkLocaleStatsDO.builder()
                         .fullShortUrl(fullShortUrl)
-                        .province(unknownFlag?"未知":province)
-                        .city(unknownFlag?"未知":localeResultObj.getStr("city"))
+                        .province(actualProvince=unknownFlag?"未知":province)
+                        .city(actualCity=unknownFlag?"未知":localeResultObj.getStr("city"))
                        .adcode(unknownFlag?"未知":localeResultObj.getStr("adcode"))
                        .cnt(1)
                        .country("china")
@@ -412,33 +414,38 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
                         .date(currentDate)
                         .build();
                 linkBrowserStatsMapper.shortLinkBrowserStats(linkBrowserStatsDO);
-                LinkAccessLogsDO linkAccessLogsDO = LinkAccessLogsDO.builder()
-                        .ip(remoteAddr)
-                        .browser(browser)
-                        .user(uv.get())
-                        .os(os)
-                        .gid(gid)
-                        .fullShortUrl(fullShortUrl)
-                        .build();
-                linkAccessLogsMapper.insert(linkAccessLogsDO);
+                String device = LinkUtil.getDevice(((HttpServletRequest) request));
 
                 LinkDeviceStatsDO linkDeviceStatsDO = LinkDeviceStatsDO.builder()
-                        .device(LinkUtil.getDevice(((HttpServletRequest) request)))
+                        .device(device)
                         .cnt(1)
                         .gid(gid)
                         .fullShortUrl(fullShortUrl)
                         .date(currentDate)
                         .build();
                 linkDeviceStatsMapper.shortLinkDeviceStats(linkDeviceStatsDO);
-
+                String network = LinkUtil.getNetwork(((HttpServletRequest) request));
                 LinkNetworkStatsDO linkNetworkStatsDO = LinkNetworkStatsDO.builder()
-                        .network(LinkUtil.getNetwork(((HttpServletRequest) request)))
+                        .network(network)
                         .cnt(1)
                         .gid(gid)
                         .fullShortUrl(fullShortUrl)
                         .date(currentDate)
                         .build();
                 linkNetworkStatsMapper.shortLinkNetworkStats(linkNetworkStatsDO);
+
+                LinkAccessLogsDO linkAccessLogsDO = LinkAccessLogsDO.builder()
+                        .ip(remoteAddr)
+                        .browser(browser)
+                        .user(uv.get())
+                        .os(os)
+                        .network(network)
+                        .device(device)
+                        .locale(StrUtil.join("-","中国",actualProvince,actualProvince))
+                        .gid(gid)
+                        .fullShortUrl(fullShortUrl)
+                        .build();
+                linkAccessLogsMapper.insert(linkAccessLogsDO);
             }
 
 
