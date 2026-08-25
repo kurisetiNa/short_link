@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 
 @Data
 public class ShortLinkPageRespDTO {
-
     @Serial
     private static final long serialVersionUID = 1L;
 
@@ -51,4 +50,20 @@ public class ShortLinkPageRespDTO {
      * 网站标识
      */
     private String favicon;
+
+    /**
+     * 历史
+     */
+    private Integer totalPv;
+    private Integer totalUv;
+    private Integer totalUIp;
+
+    /**
+     * 今日
+     */
+
+    private Integer todayPv;
+    private Integer todayUv;
+    private Integer todayUIp;
+
 }
