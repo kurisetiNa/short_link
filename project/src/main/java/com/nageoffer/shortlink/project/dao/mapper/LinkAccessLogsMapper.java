@@ -2,6 +2,7 @@ package com.nageoffer.shortlink.project.dao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.nageoffer.shortlink.project.dao.entity.LinkAccessLogsDO;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsAccessRecordReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
@@ -40,4 +41,28 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
             "FROM (SELECT `user`, MIN(DATE(create_time)) first_access_date FROM t_link_access_logs " +
             "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} GROUP BY `user`) access_users")
     Map<String, Object> findUvTypeByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
+
+    /**
+     * 查询指定访客的新老访客类型。
+     */
+    @Select("<script>" +
+            "SELECT " +
+            "    `user`, " +
+            "    CASE " +
+            "        WHEN DATE(MIN(create_time)) BETWEEN #{param.startDate} AND #{param.endDate} " +
+            "        THEN '新访客' " +
+            "        ELSE '老访客' " +
+            "    END AS uvType " +
+            "FROM t_link_access_logs " +
+            "WHERE full_short_url = #{param.fullShortUrl} " +
+            "    AND gid = #{param.gid} " +
+            "    AND `user` IN " +
+            "    <foreach item='item' collection='users' " +
+            "             open='(' separator=',' close=')'>" +
+            "        #{item}" +
+            "    </foreach> " +
+            "GROUP BY `user`" +
+            "</script>")
+    List<Map<String, Object>> selectUvTypeByUsers(@Param("param") ShortLinkStatsReqDTO requestParam,
+                                                   @Param("users") List<String> userAccessLogsList);
 }

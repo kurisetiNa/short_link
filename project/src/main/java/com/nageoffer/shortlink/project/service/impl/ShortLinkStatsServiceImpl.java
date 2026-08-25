@@ -1,6 +1,11 @@
 package com.nageoffer.shortlink.project.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.nageoffer.shortlink.project.common.convention.exception.ClientException;
+import com.nageoffer.shortlink.project.dao.entity.LinkAccessLogsDO;
 import com.nageoffer.shortlink.project.dao.entity.LinkAccessStatsDO;
 import com.nageoffer.shortlink.project.dao.entity.LinkDeviceStatsDO;
 import com.nageoffer.shortlink.project.dao.entity.LinkLocaleStatsDO;
@@ -12,16 +17,9 @@ import com.nageoffer.shortlink.project.dao.mapper.LinkDeviceStatsMapper;
 import com.nageoffer.shortlink.project.dao.mapper.LinkLocaleStatsMapper;
 import com.nageoffer.shortlink.project.dao.mapper.LinkNetworkStatsMapper;
 import com.nageoffer.shortlink.project.dao.mapper.LinkOsStatsMapper;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsAccessRecordReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsAccessDailyRespDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsBrowserRespDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsDeviceRespDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsLocaleCNRespDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsNetworkRespDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsOsRespDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsRespDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsTopIpRespDTO;
-import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsUvRespDTO;
+import com.nageoffer.shortlink.project.dto.resp.*;
 import com.nageoffer.shortlink.project.service.ShortLinkStatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -137,6 +135,43 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
                 .localeCnStats(localeCnStats).hourStats(hourStats).topIpStats(topIpStats)
                 .weekdayStats(weekdayStats).browserStats(browserStats).osStats(osStats)
                 .uvTypeStats(uvTypeStats).deviceStats(deviceStats).networkStats(networkStats).build();
+    }
+
+    @Override
+    public IPage<ShortLinkStatsAccessRecordRespDTO> shortLinkAccessRecordStats(ShortLinkStatsAccessRecordReqDTO requestParam) {
+        LambdaQueryWrapper<LinkAccessLogsDO> queryWrapper = Wrappers.lambdaQuery(LinkAccessLogsDO.class)
+                .eq(LinkAccessLogsDO::getGid, requestParam.getGid())
+                .eq(LinkAccessLogsDO::getFullShortUrl, requestParam.getFullShortUrl())
+                .ge(LinkAccessLogsDO::getCreateTime, parseDate(requestParam.getStartDate(), "开始日期").atStartOfDay())
+                .lt(LinkAccessLogsDO::getCreateTime, parseDate(requestParam.getEndDate(), "结束日期").plusDays(1).atStartOfDay())
+                .eq(LinkAccessLogsDO::getDelFlag, 0);
+        IPage<LinkAccessLogsDO> linkAccessLogsDOIPage = linkAccessLogsMapper.selectPage(requestParam, queryWrapper);
+        IPage<ShortLinkStatsAccessRecordRespDTO> actualResult = linkAccessLogsDOIPage.convert(
+                each -> BeanUtil.toBean(each, ShortLinkStatsAccessRecordRespDTO.class));
+        List<String> userAccessLogsList = actualResult.getRecords().stream()
+                .map(ShortLinkStatsAccessRecordRespDTO::getUser)
+                .toList();
+        if (userAccessLogsList.isEmpty()) {
+            return actualResult;
+        }
+        ShortLinkStatsReqDTO statsRequestParam = new ShortLinkStatsReqDTO();
+        statsRequestParam.setFullShortUrl(requestParam.getFullShortUrl());
+        statsRequestParam.setGid(requestParam.getGid());
+        statsRequestParam.setStartDate(requestParam.getStartDate());
+        statsRequestParam.setEndDate(requestParam.getEndDate());
+        List<Map<String, Object>> uvTypeList = linkAccessLogsMapper.selectUvTypeByUsers(
+                statsRequestParam, userAccessLogsList);
+        actualResult.getRecords().forEach(each -> {
+            String uvType = uvTypeList.stream()
+                    .filter(item -> Objects.equals(each.getUser(), item.get("user")))
+                    .findFirst()
+                    .map(item -> item.get("uvType"))
+                    .map(Object::toString)
+                    .orElse("旧访客");
+            each.setUvType(uvType);
+        });
+
+        return actualResult;
     }
 
     private static LocalDate parseDate(String date, String fieldName) {
