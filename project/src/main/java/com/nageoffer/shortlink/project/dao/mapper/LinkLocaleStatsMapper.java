@@ -33,9 +33,11 @@ public interface LinkLocaleStatsMapper extends BaseMapper<LinkLocaleStatsDO> {
             "update_time = NOW()")
     void shortLinkLocaleState(@Param("linkLocaleStats") LinkLocaleStatsDO linkLocaleStatsDO);
 
-    @Select("SELECT province, SUM(cnt) cnt FROM t_link_locale_stats " +
-            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
+    @Select("<script>SELECT province, SUM(cnt) cnt FROM t_link_locale_stats " +
+            "WHERE gid = #{param.gid} " +
+            "<if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "AND full_short_url = #{param.fullShortUrl} </if>" +
             "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} " +
-            "GROUP BY province ORDER BY cnt DESC")
+            "GROUP BY province ORDER BY cnt DESC</script>")
     List<LinkLocaleStatsDO> listLocaleByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 }

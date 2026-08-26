@@ -10,6 +10,7 @@ import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkPageReqDTO;
 import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkUpdateReqDTO;
 import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkStatsReqDTO;
 import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkStatsAccessRecordReqDTO;
+import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkGroupStatsReqDTO;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkCreateRespDTO;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkPageRespDTO;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkStatsRespDTO;
@@ -58,6 +59,14 @@ public class ShortLinkController {
     @GetMapping("/api/shortlink/admin/v1/stats")
     public Result<ShortLinkStatsRespDTO> oneShortLinkStats(ShortLinkStatsReqDTO requestParam) {
         return shortLinkRemoteService.oneShortLinkStats(requestParam);
+    }
+
+    /**
+     * 查询分组内短链接监控数据。
+     */
+    @GetMapping("/api/shortlink/admin/v1/stats/group")
+    public Result<ShortLinkStatsRespDTO> groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam) {
+        return shortLinkRemoteService.groupShortLinkStats(requestParam);
     }
 
     /**

@@ -29,8 +29,11 @@ public interface LinkOsStatsMapper extends BaseMapper<LinkOsStatsDO> {
             "update_time = NOW()")
     void shortLinkOsStats(@Param("linkOsStats") LinkOsStatsDO linkOsStatsDO);
 
-    @Select("SELECT os, SUM(cnt) `count` FROM t_link_os_stats " +
-            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
-            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY os ORDER BY `count` DESC")
+    @Select("<script>SELECT os, SUM(cnt) `count` FROM t_link_os_stats " +
+            "WHERE gid = #{param.gid} " +
+            "<if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "AND full_short_url = #{param.fullShortUrl} </if>" +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} " +
+            "GROUP BY os ORDER BY `count` DESC</script>")
     List<Map<String, Object>> listOsStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 }

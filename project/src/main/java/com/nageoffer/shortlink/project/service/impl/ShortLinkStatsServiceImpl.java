@@ -18,6 +18,7 @@ import com.nageoffer.shortlink.project.dao.mapper.LinkLocaleStatsMapper;
 import com.nageoffer.shortlink.project.dao.mapper.LinkNetworkStatsMapper;
 import com.nageoffer.shortlink.project.dao.mapper.LinkOsStatsMapper;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsAccessRecordReqDTO;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import com.nageoffer.shortlink.project.dto.resp.*;
 import com.nageoffer.shortlink.project.service.ShortLinkStatsService;
@@ -48,6 +49,19 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
 
     @Override
     public ShortLinkStatsRespDTO oneShortLinkStats(ShortLinkStatsReqDTO requestParam) {
+        return buildStats(requestParam);
+    }
+
+    @Override
+    public ShortLinkStatsRespDTO groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam) {
+        ShortLinkStatsReqDTO statsRequestParam = new ShortLinkStatsReqDTO();
+        statsRequestParam.setGid(requestParam.getGid());
+        statsRequestParam.setStartDate(requestParam.getStartDate());
+        statsRequestParam.setEndDate(requestParam.getEndDate());
+        return buildStats(statsRequestParam);
+    }
+
+    private ShortLinkStatsRespDTO buildStats(ShortLinkStatsReqDTO requestParam) {
         LocalDate startDate = parseDate(requestParam.getStartDate(), "开始日期");
         LocalDate endDate = parseDate(requestParam.getEndDate(), "结束日期");
         if (endDate.isBefore(startDate)) {

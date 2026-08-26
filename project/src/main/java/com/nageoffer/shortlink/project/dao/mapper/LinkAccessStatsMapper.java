@@ -31,19 +31,28 @@ public interface LinkAccessStatsMapper extends BaseMapper<LinkAccessStatsDO> {
             "update_time = NOW()")
     void shortLinkStats(@Param("linkAccessStats") LinkAccessStatsDO linkAccessStats);
 
-    @Select("SELECT `date`, SUM(pv) pv, SUM(uv) uv, SUM(uip) uip " +
-            "FROM t_link_access_stats WHERE full_short_url = #{param.fullShortUrl} " +
-            "AND gid = #{param.gid} AND `date` BETWEEN #{param.startDate} AND #{param.endDate} " +
-            "GROUP BY `date` ORDER BY `date`")
+    @Select("<script>SELECT `date`, SUM(pv) pv, SUM(uv) uv, SUM(uip) uip " +
+            "FROM t_link_access_stats WHERE gid = #{param.gid} " +
+            "<if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "AND full_short_url = #{param.fullShortUrl} </if>" +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} " +
+            "GROUP BY `date` ORDER BY `date`</script>")
     List<LinkAccessStatsDO> listStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 
-    @Select("SELECT `hour`, SUM(pv) pv FROM t_link_access_stats " +
-            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
-            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY `hour`")
+    @Select("<script>SELECT `hour`, SUM(pv) pv FROM t_link_access_stats " +
+            "WHERE gid = #{param.gid} " +
+            "<if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "AND full_short_url = #{param.fullShortUrl} </if>" +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY `hour`</script>")
     List<LinkAccessStatsDO> listHourStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 
-    @Select("SELECT `weekday`, SUM(pv) pv FROM t_link_access_stats " +
-            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
-            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY `weekday`")
+    @Select("<script>SELECT `weekday`, SUM(pv) pv FROM t_link_access_stats " +
+            "WHERE gid = #{param.gid} " +
+            "<if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "AND full_short_url = #{param.fullShortUrl} </if>" +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY `weekday`</script>")
     List<LinkAccessStatsDO> listWeekdayStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
+
+
+
 }

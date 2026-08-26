@@ -29,8 +29,11 @@ public interface LinkDeviceStatsMapper extends BaseMapper<LinkDeviceStatsDO> {
             "update_time = NOW()")
     void shortLinkDeviceStats(@Param("linkDeviceStats") LinkDeviceStatsDO linkDeviceStatsDO);
 
-    @Select("SELECT device, SUM(cnt) cnt FROM t_link_device_stats " +
-            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
-            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY device ORDER BY cnt DESC")
+    @Select("<script>SELECT device, SUM(cnt) cnt FROM t_link_device_stats " +
+            "WHERE gid = #{param.gid} " +
+            "<if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "AND full_short_url = #{param.fullShortUrl} </if>" +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} " +
+            "GROUP BY device ORDER BY cnt DESC</script>")
     List<LinkDeviceStatsDO> listDeviceStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 }

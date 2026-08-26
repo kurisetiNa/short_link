@@ -30,8 +30,11 @@ public interface LinkBrowserStatsMapper extends BaseMapper<LinkBrowserStatsDO> {
             "update_time = NOW()")
     void shortLinkBrowserStats(@Param("linkBrowserStats") LinkBrowserStatsDO linkBrowserStatsDO);
 
-    @Select("SELECT browser, SUM(cnt) `count` FROM t_link_browser_stats " +
-            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
-            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY browser ORDER BY `count` DESC")
+    @Select("<script>SELECT browser, SUM(cnt) `count` FROM t_link_browser_stats " +
+            "WHERE gid = #{param.gid} " +
+            "<if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "AND full_short_url = #{param.fullShortUrl} </if>" +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} " +
+            "GROUP BY browser ORDER BY `count` DESC</script>")
     List<Map<String, Object>> listBrowserStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 }

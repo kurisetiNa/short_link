@@ -29,8 +29,11 @@ public interface LinkNetworkStatsMapper extends BaseMapper<LinkNetworkStatsDO> {
             "update_time = NOW()")
     void shortLinkNetworkStats(@Param("linkNetworkStats") LinkNetworkStatsDO linkNetworkStatsDO);
 
-    @Select("SELECT network, SUM(cnt) cnt FROM t_link_network_stats " +
-            "WHERE full_short_url = #{param.fullShortUrl} AND gid = #{param.gid} " +
-            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} GROUP BY network ORDER BY cnt DESC")
+    @Select("<script>SELECT network, SUM(cnt) cnt FROM t_link_network_stats " +
+            "WHERE gid = #{param.gid} " +
+            "<if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "AND full_short_url = #{param.fullShortUrl} </if>" +
+            "AND `date` BETWEEN #{param.startDate} AND #{param.endDate} " +
+            "GROUP BY network ORDER BY cnt DESC</script>")
     List<LinkNetworkStatsDO> listNetworkStatsByShortLink(@Param("param") ShortLinkStatsReqDTO requestParam);
 }
