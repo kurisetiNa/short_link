@@ -50,5 +50,6 @@ public class LinkStatsTodayDO extends BaseDO implements Serializable {
     private Integer todayUv;
 
     /** 今日独立 IP 数 */
-    private Integer todayIpCount;
+    @TableField("today_uip")
+    private Integer todayUIp;
 }
