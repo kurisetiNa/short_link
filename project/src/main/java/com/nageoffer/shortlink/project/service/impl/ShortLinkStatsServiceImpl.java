@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nageoffer.shortlink.project.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.project.dao.entity.LinkAccessLogsDO;
 import com.nageoffer.shortlink.project.dao.entity.LinkAccessStatsDO;
@@ -19,6 +20,7 @@ import com.nageoffer.shortlink.project.dao.mapper.LinkNetworkStatsMapper;
 import com.nageoffer.shortlink.project.dao.mapper.LinkOsStatsMapper;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsAccessRecordReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkGroupStatsAccessRecordReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import com.nageoffer.shortlink.project.dto.resp.*;
 import com.nageoffer.shortlink.project.service.ShortLinkStatsService;
@@ -153,13 +155,27 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
 
     @Override
     public IPage<ShortLinkStatsAccessRecordRespDTO> shortLinkAccessRecordStats(ShortLinkStatsAccessRecordReqDTO requestParam) {
+        return accessRecordStats(requestParam, requestParam.getGid(), requestParam.getFullShortUrl(),
+                requestParam.getStartDate(), requestParam.getEndDate());
+    }
+
+    @Override
+    public IPage<ShortLinkStatsAccessRecordRespDTO> groupShortLinkAccessRecordStats(
+            ShortLinkGroupStatsAccessRecordReqDTO requestParam) {
+        return accessRecordStats(requestParam, requestParam.getGid(), null,
+                requestParam.getStartDate(), requestParam.getEndDate());
+    }
+
+    private IPage<ShortLinkStatsAccessRecordRespDTO> accessRecordStats(
+            Page<LinkAccessLogsDO> pageParam, String gid, String fullShortUrl, String startDate, String endDate) {
         LambdaQueryWrapper<LinkAccessLogsDO> queryWrapper = Wrappers.lambdaQuery(LinkAccessLogsDO.class)
-                .eq(LinkAccessLogsDO::getGid, requestParam.getGid())
-                .eq(LinkAccessLogsDO::getFullShortUrl, requestParam.getFullShortUrl())
-                .ge(LinkAccessLogsDO::getCreateTime, parseDate(requestParam.getStartDate(), "开始日期").atStartOfDay())
-                .lt(LinkAccessLogsDO::getCreateTime, parseDate(requestParam.getEndDate(), "结束日期").plusDays(1).atStartOfDay())
-                .eq(LinkAccessLogsDO::getDelFlag, 0);
-        IPage<LinkAccessLogsDO> linkAccessLogsDOIPage = linkAccessLogsMapper.selectPage(requestParam, queryWrapper);
+                .eq(LinkAccessLogsDO::getGid, gid)
+                .eq(fullShortUrl != null && !fullShortUrl.isBlank(), LinkAccessLogsDO::getFullShortUrl, fullShortUrl)
+                .ge(LinkAccessLogsDO::getCreateTime, parseDate(startDate, "开始日期").atStartOfDay())
+                .lt(LinkAccessLogsDO::getCreateTime, parseDate(endDate, "结束日期").plusDays(1).atStartOfDay())
+                .eq(LinkAccessLogsDO::getDelFlag, 0)
+                .orderByDesc(LinkAccessLogsDO::getCreateTime);
+        IPage<LinkAccessLogsDO> linkAccessLogsDOIPage = linkAccessLogsMapper.selectPage(pageParam, queryWrapper);
         IPage<ShortLinkStatsAccessRecordRespDTO> actualResult = linkAccessLogsDOIPage.convert(
                 each -> BeanUtil.toBean(each, ShortLinkStatsAccessRecordRespDTO.class));
         List<String> userAccessLogsList = actualResult.getRecords().stream()
@@ -169,10 +185,10 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
             return actualResult;
         }
         ShortLinkStatsReqDTO statsRequestParam = new ShortLinkStatsReqDTO();
-        statsRequestParam.setFullShortUrl(requestParam.getFullShortUrl());
-        statsRequestParam.setGid(requestParam.getGid());
-        statsRequestParam.setStartDate(requestParam.getStartDate());
-        statsRequestParam.setEndDate(requestParam.getEndDate());
+        statsRequestParam.setFullShortUrl(fullShortUrl);
+        statsRequestParam.setGid(gid);
+        statsRequestParam.setStartDate(startDate);
+        statsRequestParam.setEndDate(endDate);
         List<Map<String, Object>> uvTypeList = linkAccessLogsMapper.selectUvTypeByUsers(
                 statsRequestParam, userAccessLogsList);
         actualResult.getRecords().forEach(each -> {

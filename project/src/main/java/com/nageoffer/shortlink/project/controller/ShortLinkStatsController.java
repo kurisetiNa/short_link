@@ -5,6 +5,7 @@ import com.nageoffer.shortlink.project.common.convention.result.Result;
 import com.nageoffer.shortlink.project.common.convention.result.Results;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsAccessRecordReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkGroupStatsAccessRecordReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsAccessRecordRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsRespDTO;
@@ -45,5 +46,14 @@ public class ShortLinkStatsController {
     @GetMapping("/accessRecord")
     public Result<IPage<ShortLinkStatsAccessRecordRespDTO>> shortLinkAccessRecordStats(ShortLinkStatsAccessRecordReqDTO requestParam) {
         return Results.success(shortLinkStatsService.shortLinkAccessRecordStats(requestParam));
+    }
+
+    /**
+     * 分组内短链接指定时间内访问记录
+     */
+    @GetMapping("/accessRecord/group")
+    public Result<IPage<ShortLinkStatsAccessRecordRespDTO>> groupShortLinkAccessRecordStats(
+            ShortLinkGroupStatsAccessRecordReqDTO requestParam) {
+        return Results.success(shortLinkStatsService.groupShortLinkAccessRecordStats(requestParam));
     }
 }

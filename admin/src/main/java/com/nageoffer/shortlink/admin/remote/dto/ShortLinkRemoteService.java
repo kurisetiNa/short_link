@@ -115,6 +115,24 @@ public interface ShortLinkRemoteService {
                 });
     }
 
+    /**
+     * 分页查询分组内短链接访问记录。
+     */
+    default Result<IPage<ShortLinkStatsAccessRecordRespDTO>> groupShortLinkStatsAccessRecord(
+            ShortLinkGroupStatsAccessRecordReqDTO requestParam) {
+        Map<String, Object> requestMap = new HashMap<>();
+        requestMap.put("gid", requestParam.getGid());
+        requestMap.put("startDate", requestParam.getStartDate());
+        requestMap.put("endDate", requestParam.getEndDate());
+        requestMap.put("current", requestParam.getCurrent());
+        requestMap.put("size", requestParam.getSize());
+        String resultStr = HttpUtil.get(
+                "http://127.0.0.1:8001/api/shortlink/v1/stats/accessRecord/group", requestMap);
+        return JSON.parseObject(resultStr,
+                new TypeReference<Result<IPage<ShortLinkStatsAccessRecordRespDTO>>>() {
+                });
+    }
+
 
     /**
      * 查询分组短链接总量

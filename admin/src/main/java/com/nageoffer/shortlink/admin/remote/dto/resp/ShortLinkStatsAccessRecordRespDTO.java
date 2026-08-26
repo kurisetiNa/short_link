@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Data
 public class ShortLinkStatsAccessRecordRespDTO {
 
+    private String fullShortUrl;
     private String uvType;
     private String browser;
     private String os;

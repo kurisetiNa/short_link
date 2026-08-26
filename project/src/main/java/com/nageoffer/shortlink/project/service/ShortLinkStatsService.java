@@ -3,6 +3,7 @@ package com.nageoffer.shortlink.project.service;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsAccessRecordReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkGroupStatsAccessRecordReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsAccessRecordRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkStatsRespDTO;
@@ -30,4 +31,10 @@ public interface ShortLinkStatsService {
      * 单个链接指定时间内访问记录监控数据
      */
     IPage<ShortLinkStatsAccessRecordRespDTO> shortLinkAccessRecordStats(ShortLinkStatsAccessRecordReqDTO requestParam);
+
+    /**
+     * 分页查询分组内短链接在指定时间范围内的访问记录。
+     */
+    IPage<ShortLinkStatsAccessRecordRespDTO> groupShortLinkAccessRecordStats(
+            ShortLinkGroupStatsAccessRecordReqDTO requestParam);
 }

@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class ShortLinkStatsAccessRecordRespDTO {
 
+    /** 完整短链接 */
+    private String fullShortUrl;
+
     /** 访客类型*/
     private String uvType;
 

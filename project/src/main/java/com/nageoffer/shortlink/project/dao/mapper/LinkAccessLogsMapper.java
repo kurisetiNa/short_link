@@ -59,8 +59,10 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
             "        ELSE '老访客' " +
             "    END AS uvType " +
             "FROM t_link_access_logs " +
-            "WHERE full_short_url = #{param.fullShortUrl} " +
-            "    AND gid = #{param.gid} " +
+            "WHERE gid = #{param.gid} " +
+            "    <if test=\"param.fullShortUrl != null and param.fullShortUrl != ''\">" +
+            "        AND full_short_url = #{param.fullShortUrl} " +
+            "    </if>" +
             "    AND `user` IN " +
             "    <foreach item='item' collection='users' " +
             "             open='(' separator=',' close=')'>" +
