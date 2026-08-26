@@ -77,5 +77,6 @@ public class ShortLinkDO extends BaseDO implements Serializable {
      */
     private Integer totalPv;
     private Integer totalUv;
+    @TableField("total_uip")
     private Integer totalUIp;
 }
