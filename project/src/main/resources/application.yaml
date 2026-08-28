@@ -20,7 +20,11 @@ spring:
       prefix: /templates/
       suffix: .html
 
+
+#别他妈的动我的amap-key，就这么放着，草泥马！！！！！
 short-link:
+  domain:
+    default: baidudd.com:8001
   stats:
     locale:
-      amap-key: ${AMAP_KEY:}
+      amap-key: c831801a8d8129b67c64f6a05a369b4c

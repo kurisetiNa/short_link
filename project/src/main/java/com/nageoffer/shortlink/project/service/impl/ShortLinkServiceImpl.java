@@ -62,6 +62,9 @@ import static com.nageoffer.shortlink.project.common.constant.ShortLinkConstant.
 /**
  * 短链接接口实现层
  */
+
+
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -80,6 +83,10 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
     private final LinkStatsTodayMapper linkStatsTodayMapper;
 
+
+    @Value("${short-link.domain.default}")
+    private String createShortLinkDefaultDomain;
+
     @Value("${short-link.stats.locale.amap-key}")
     private String statsLocaleAmapKey;
 
@@ -87,9 +94,9 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParam) {
         String shortLinkSuffix = generateSuffix(requestParam);
-        String fullShortUrl = requestParam.getDomain() + "/" + shortLinkSuffix;
+        String fullShortUrl = createShortLinkDefaultDomain + "/" + shortLinkSuffix;
         ShortLinkDO shortLinkDO = ShortLinkDO.builder()
-                .domain(requestParam.getDomain())
+                .domain(createShortLinkDefaultDomain)
                 .originUrl(requestParam.getOriginUrl())
                 .gid(requestParam.getGid())
                 .createdType(requestParam.getCreatedType())
@@ -232,7 +239,12 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     @Override
     public void restoreUrl(String shortUri, ServletRequest request, ServletResponse response) {
         String serverName = request.getServerName();
-        String fullShortUrl = serverName + "/" + shortUri;
+        String serverPort=Optional.of(request.getServerPort()) // 获取端口，如 8001
+                .filter(each -> !Objects.equals(each, 80)) // 排除默认端口 80
+                .map(String::valueOf)                      // 8001 转成 "8001"
+                .map(each -> ":" + each)                   // 转成 ":8001"
+                .orElse("");                               // 如果是 80，则返回空字符串
+        String fullShortUrl = serverName + serverPort+"/" + shortUri;
         String originalLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl));
 
         if (StrUtil.isNotBlank(originalLink)) {
