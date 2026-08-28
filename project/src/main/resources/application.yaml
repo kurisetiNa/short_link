@@ -25,6 +25,14 @@ spring:
 short-link:
   domain:
     default: baidudd.com:8001
+  goto-domain:
+    white-list:
+      enable: true
+      names: 哔哩哔哩、百度、GitHub
+      details:
+        - bilibili.com
+        - baidu.com
+        - github.com
   stats:
     locale:
       amap-key: c831801a8d8129b67c64f6a05a369b4c

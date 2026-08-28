@@ -1,7 +1,9 @@
 package com.nageoffer.shortlink.project.toolkit;
 
+import cn.hutool.core.util.StrUtil;
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.net.URI;
 import java.time.Duration;
 import java.time.LocalDateTime;
 
@@ -122,5 +124,25 @@ public class LinkUtil {
         // 这里简单判断IP地址范围，您可能需要更复杂的逻辑
         // 例如，通过调用IP地址库或调用第三方服务来判断网络类型
         return actualIp.startsWith("192.168.") || actualIp.startsWith("10.") ? "WIFI" : "Mobile";
+    }
+
+    /**
+     * 提取原始链接域名，并移除 www. 前缀。
+     *
+     * @param url 原始链接
+     * @return 域名；链接格式错误时返回 null
+     */
+    public static String extractDomain(String url) {
+        try {
+            URI uri = new URI(url);
+            String host = uri.getHost();
+            if (StrUtil.isBlank(host)) {
+                return null;
+            }
+            String domain = host.toLowerCase();
+            return domain.startsWith("www.") ? domain.substring(4) : domain;
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 }

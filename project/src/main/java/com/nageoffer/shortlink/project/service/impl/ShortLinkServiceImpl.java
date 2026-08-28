@@ -15,6 +15,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.project.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.project.common.convention.exception.ServiceException;
 import com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum;
+import com.nageoffer.shortlink.project.config.GotoDomainWhiteListConfiguration;
 import com.nageoffer.shortlink.project.dao.entity.*;
 import com.nageoffer.shortlink.project.dao.mapper.*;
 import com.nageoffer.shortlink.project.dto.biz.ShortLinkStatsRecordDTO;
@@ -91,6 +92,7 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     private final LinkStatsTodayMapper linkStatsTodayMapper;
     private final LinkStatsTodayService linkStatsTodayService;
     private final DelayShortLinkStatsProducer delayShortLinkStatsProducer;
+    private final GotoDomainWhiteListConfiguration gotoDomainWhiteListConfiguration;
 
 
     @Value("${short-link.domain.default}")
@@ -102,6 +104,7 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     @Transactional(rollbackFor = Exception.class)
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParam) {
+        verificationWhitelist(requestParam.getOriginUrl());
         String shortLinkSuffix = generateSuffix(requestParam);
         String fullShortUrl = createShortLinkDefaultDomain + "/" + shortLinkSuffix;
         ShortLinkDO shortLinkDO = ShortLinkDO.builder()
@@ -215,6 +218,7 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void updateShortLink(ShortLinkUpdateReqDTO requestParam) {
+        verificationWhitelist(requestParam.getOriginUrl());
         // 兼容尚未传 originGid 的旧客户端；跨分组更新时必须传入原分组标识。
         String originGid = requestParam.getOriginGid() == null
                 ? requestParam.getGid()
@@ -790,6 +794,25 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
                         .eq(LinkAccessLogsDO::getFullShortUrl, fullShortUrl)
                         .eq(LinkAccessLogsDO::getGid, originGid)
                         .eq(LinkAccessLogsDO::getDelFlag, 0));
+    }
+
+    private void verificationWhitelist(String originUrl) {
+        if (!Boolean.TRUE.equals(gotoDomainWhiteListConfiguration.getEnable())) {
+            return;
+        }
+        String domain = LinkUtil.extractDomain(originUrl);
+        if (StrUtil.isBlank(domain)) {
+            throw new ClientException("跳转链接填写错误，请填写包含 http:// 或 https:// 的完整链接");
+        }
+        List<String> details = gotoDomainWhiteListConfiguration.getDetails();
+        boolean allowed = details != null && details.stream()
+                .filter(Objects::nonNull)
+                .map(String::toLowerCase)
+                .anyMatch(domain::equals);
+        if (!allowed) {
+            throw new ClientException(
+                    "当前仅允许生成以下网站的跳转链接：" + gotoDomainWhiteListConfiguration.getNames());
+        }
     }
 
     private String generateSuffix(ShortLinkCreateReqDTO requestParam) {
