@@ -91,4 +91,7 @@ public class ShortLinkDO extends BaseDO implements Serializable {
     /** 今日独立 IP 数 */
     @TableField(exist = false)
     private Integer todayUIp;
+
+    /** 删除时间戳，未删除时为 0 */
+    private Long delTime;
 }

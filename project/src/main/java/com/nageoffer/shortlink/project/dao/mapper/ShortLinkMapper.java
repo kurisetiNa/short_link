@@ -20,7 +20,9 @@ public interface ShortLinkMapper extends BaseMapper<ShortLinkDO> {
             "total_uv = total_uv + #{totalUv}, " +
             "total_uip = total_uip + #{totalUIp} " +
             "WHERE gid = #{gid} " +
-            "AND full_short_url = #{fullShortUrl}")
+            "AND full_short_url = #{fullShortUrl} " +
+            "AND del_flag = 0 " +
+            "AND del_time = 0")
     void incrementStats(
             @Param("gid") String gid,
             @Param("fullShortUrl") String fullShortUrl,
