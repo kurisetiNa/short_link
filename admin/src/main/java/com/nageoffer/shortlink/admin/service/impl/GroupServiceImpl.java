@@ -1,6 +1,7 @@
 package com.nageoffer.shortlink.admin.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -18,19 +19,30 @@ import com.nageoffer.shortlink.admin.remote.dto.ShortLinkRemoteService;
 import com.nageoffer.shortlink.admin.service.GroupService;
 import com.nageoffer.shortlink.admin.toolkit.RandomGenerator;
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.LOCK_GROUP_CREATE_KEY;
 
 /**
  * 短链接接口实现层
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService {
+    private final RedissonClient redissonClient;
+
+    @Value("${short-link.group.max-num:20}")
+    private int groupMaxNum;
+
     ShortLinkRemoteService shortLinkRemoteService=new ShortLinkRemoteService() {
     };
     @Override
@@ -40,19 +52,38 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
     @Override
     public void saveGroup(String username, String groupName) {
-        String gid;
-        do {
-            gid = RandomGenerator.generateRandom();
-        } while (!hasGid(username, gid));
+        if (username == null) {
+            throw new ClientException("用户未登录");
+        }
 
-        GroupDO groupDO = GroupDO.builder()
-                .gid(gid)
-                .username(username)
-                .sortOrder(0)
-                .name(groupName)
-                .build();
+        RLock lock = redissonClient.getLock(String.format(LOCK_GROUP_CREATE_KEY, username));
+        lock.lock();
+        try {
+            List<GroupDO> groupDOList = baseMapper.selectList(Wrappers.lambdaQuery(GroupDO.class)
+                    .eq(GroupDO::getUsername, username)
+                    .eq(GroupDO::getDelFlag, 0));
+            if (CollUtil.size(groupDOList) >= groupMaxNum) {
+                throw new ClientException(String.format("已超过分组最大数量：%d", groupMaxNum));
+            }
 
-        baseMapper.insert(groupDO);
+            String gid;
+            do {
+                gid = RandomGenerator.generateRandom();
+            } while (!hasGid(username, gid));
+
+            GroupDO groupDO = GroupDO.builder()
+                    .gid(gid)
+                    .username(username)
+                    .sortOrder(0)
+                    .name(groupName)
+                    .build();
+
+            baseMapper.insert(groupDO);
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
     }
 
     /**
