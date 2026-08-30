@@ -132,17 +132,7 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
             baseMapper.insert(shortLinkDO);
             shortLinkGotoMapper.insert(linkGotoDO);
         } catch (DuplicateKeyException ex) {
-            ShortLinkDO hasShortLinkDO = baseMapper.selectOne(
-                    Wrappers.lambdaQuery(ShortLinkDO.class)
-                            .eq(ShortLinkDO::getFullShortUrl, fullShortUrl)
-            );
-
-            if (hasShortLinkDO != null) {
-                log.warn("短链接 {} 重复入库", fullShortUrl);
-                throw new ServiceException("短链接生成重复");
-            }
-
-            throw ex;
+            throw new ServiceException(String.format("短链接：%s 生成重复", fullShortUrl));
         }
         /**
          * 缓存预热
@@ -733,7 +723,7 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
             }
 
             String originUrl = requestParam.getOriginUrl();
-            originUrl+=System.currentTimeMillis();
+            originUrl += UUID.randomUUID().toString();
             shortUri = HashUtil.hashToBase62(originUrl);
 
             if (!shortUriCreateCachePenetrationBloomFilter.contains(createShortLinkDefaultDomain + "/" + shortUri)) {
