@@ -30,7 +30,7 @@ import com.nageoffer.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.nageoffer.shortlink.project.service.ShortLinkService;
 import com.nageoffer.shortlink.project.service.LinkStatsTodayService;
-import com.nageoffer.shortlink.project.mq.producer.DelayShortLinkStatsProducer;
+import com.nageoffer.shortlink.project.mq.producer.ShortLinkStatsSaveProducer;
 import com.nageoffer.shortlink.project.toolkit.HashUtil;
 import com.nageoffer.shortlink.project.toolkit.LinkUtil;
 import jakarta.servlet.ServletRequest;
@@ -91,7 +91,7 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
     private final LinkStatsTodayMapper linkStatsTodayMapper;
     private final LinkStatsTodayService linkStatsTodayService;
-    private final DelayShortLinkStatsProducer delayShortLinkStatsProducer;
+    private final ShortLinkStatsSaveProducer shortLinkStatsSaveProducer;
     private final GotoDomainWhiteListConfiguration gotoDomainWhiteListConfiguration;
 
 
@@ -477,103 +477,12 @@ public class ShortLinkServiceImpl extends ServiceImpl< ShortLinkMapper,ShortLink
     public void shortLinkStats(String fullShortUrl, String gid, ShortLinkStatsRecordDTO statsRecord) {
         String actualFullShortUrl = Optional.ofNullable(fullShortUrl)
                 .orElse(statsRecord.getFullShortUrl());
-        RReadWriteLock readWriteLock = redissonClient.getReadWriteLock(
-                String.format(LOCK_GID_UPDATE_KEY, actualFullShortUrl));
-        RLock readLock = readWriteLock.readLock();
-        if (!readLock.tryLock()) {
-            delayShortLinkStatsProducer.send(statsRecord);
-            return;
-        }
         try {
-            String actualGid = gid;
-            if (StrUtil.isBlank(actualGid)) {
-                ShortLinkGotoDO gotoRecord = shortLinkGotoMapper.selectOne(
-                        Wrappers.lambdaQuery(ShortLinkGotoDO.class)
-                                .eq(ShortLinkGotoDO::getFullShortUrl, actualFullShortUrl));
-                if (gotoRecord == null) {
-                    return;
-                }
-                actualGid = gotoRecord.getGid();
-            }
-            persistShortLinkStats(actualFullShortUrl, actualGid, statsRecord);
+            shortLinkStatsSaveProducer.send(actualFullShortUrl, statsRecord);
         } catch (Throwable ex) {
-            log.error("短链接访问量统计异常", ex);
-        } finally {
-            readLock.unlock();
+            // 统计消息发送失败不应影响短链接主流程的重定向。
+            log.error("短链接访问统计消息发送异常", ex);
         }
-    }
-
-    private void persistShortLinkStats(
-            String fullShortUrl, String gid, ShortLinkStatsRecordDTO statsRecord) {
-        LocalDate currentDate = LocalDate.now();
-        LinkAccessStatsDO accessStats = LinkAccessStatsDO.builder()
-                .fullShortUrl(fullShortUrl)
-                .gid(gid)
-                .date(currentDate)
-                .pv(1)
-                .uv(Boolean.TRUE.equals(statsRecord.getUvFirstFlag()) ? 1 : 0)
-                .uip(Boolean.TRUE.equals(statsRecord.getUipFirstFlag()) ? 1 : 0)
-                .hour(LocalDateTime.now().getHour())
-                .weekday(currentDate.getDayOfWeek().getValue())
-                .build();
-        linkAccessStatsMapper.shortLinkStats(accessStats);
-
-        String actualProvince = "未知";
-        String actualCity = "未知";
-        Map<String, Object> localeParams = new HashMap<>();
-        localeParams.put("key", statsLocaleAmapKey);
-        localeParams.put("ip", statsRecord.getRemoteAddr());
-        String localeResult = HttpUtil.get(AMAP_REMOTE_URL, localeParams);
-        JSONObject localeObject = JSONUtil.parseObj(localeResult);
-        if (StrUtil.equals(localeObject.getStr("infocode"), "10000")) {
-            String province = localeObject.getStr("province");
-            boolean unknown = StrUtil.equals(province, "[]");
-            actualProvince = unknown ? actualProvince : province;
-            actualCity = unknown ? actualCity : localeObject.getStr("city");
-            LinkLocaleStatsDO localeStats = LinkLocaleStatsDO.builder()
-                    .fullShortUrl(fullShortUrl)
-                    .province(actualProvince)
-                    .city(actualCity)
-                    .adcode(unknown ? "未知" : localeObject.getStr("adcode"))
-                    .cnt(1)
-                    .country("china")
-                    .gid(gid)
-                    .date(currentDate)
-                    .build();
-            linkLocaleStatsMapper.shortLinkLocaleState(localeStats);
-        }
-
-        linkOsStatsMapper.shortLinkOsStats(LinkOsStatsDO.builder()
-                .os(statsRecord.getOs()).cnt(1).gid(gid)
-                .date(currentDate).fullShortUrl(fullShortUrl).build());
-        linkBrowserStatsMapper.shortLinkBrowserStats(LinkBrowserStatsDO.builder()
-                .browser(statsRecord.getBrowser()).cnt(1).gid(gid)
-                .date(currentDate).fullShortUrl(fullShortUrl).build());
-        linkDeviceStatsMapper.shortLinkDeviceStats(LinkDeviceStatsDO.builder()
-                .device(statsRecord.getDevice()).cnt(1).gid(gid)
-                .date(currentDate).fullShortUrl(fullShortUrl).build());
-        linkNetworkStatsMapper.shortLinkNetworkStats(LinkNetworkStatsDO.builder()
-                .network(statsRecord.getNetwork()).cnt(1).gid(gid)
-                .date(currentDate).fullShortUrl(fullShortUrl).build());
-
-        linkAccessLogsMapper.insert(LinkAccessLogsDO.builder()
-                .ip(statsRecord.getRemoteAddr())
-                .browser(statsRecord.getBrowser())
-                .user(statsRecord.getUv())
-                .os(statsRecord.getOs())
-                .network(statsRecord.getNetwork())
-                .device(statsRecord.getDevice())
-                .locale(StrUtil.join("-", "中国", actualProvince, actualCity))
-                .gid(gid)
-                .fullShortUrl(fullShortUrl)
-                .build());
-
-        int uv = Boolean.TRUE.equals(statsRecord.getUvFirstFlag()) ? 1 : 0;
-        int uip = Boolean.TRUE.equals(statsRecord.getUipFirstFlag()) ? 1 : 0;
-        baseMapper.incrementStats(gid, fullShortUrl, 1, uv, uip);
-        linkStatsTodayMapper.shortLinkStatsToday(LinkStatsTodayDO.builder()
-                .todayPv(1).todayUv(uv).todayUIp(uip)
-                .gid(gid).fullShortUrl(fullShortUrl).date(currentDate).build());
     }
 
     private void legacyShortLinkStats(String fullShortUrl, String gid, ServletRequest request, ServletResponse response) {
