@@ -21,4 +21,7 @@ public class RedisKeyConstant {
     /** 短链接修改分组读写锁 Key */
     public static final String LOCK_GID_UPDATE_KEY = "short-link_lock_update-gid_%s";
 
+    /** 短链接统计延迟队列 Key。 */
+    public static final String DELAY_QUEUE_STATS_KEY = "short-link_delay-queue:stats";
+
 }

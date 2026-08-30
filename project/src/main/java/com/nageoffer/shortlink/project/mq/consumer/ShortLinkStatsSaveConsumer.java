@@ -10,6 +10,7 @@ import com.nageoffer.shortlink.project.dao.entity.*;
 import com.nageoffer.shortlink.project.dao.mapper.*;
 import com.nageoffer.shortlink.project.dto.biz.ShortLinkStatsRecordDTO;
 import com.nageoffer.shortlink.project.mq.idempotent.MessageQueueIdempotentHandler;
+import com.nageoffer.shortlink.project.mq.producer.DelayShortLinkStatsProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -50,6 +51,7 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     private final RedissonClient redissonClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final MessageQueueIdempotentHandler messageQueueIdempotentHandler;
+    private final DelayShortLinkStatsProducer delayShortLinkStatsProducer;
 
     @Value("${spring.data.redis.channel-topic.short-link-stats-group}")
     private String group;
@@ -106,7 +108,10 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
         RReadWriteLock readWriteLock = redissonClient.getReadWriteLock(
                 String.format(LOCK_GID_UPDATE_KEY, fullShortUrl));
         RLock readLock = readWriteLock.readLock();
-        readLock.lock();
+        if (!readLock.tryLock()) {
+            delayShortLinkStatsProducer.send(statsRecord);
+            return;
+        }
         try {
             ShortLinkGotoDO gotoRecord = shortLinkGotoMapper.selectOne(
                     Wrappers.lambdaQuery(ShortLinkGotoDO.class)

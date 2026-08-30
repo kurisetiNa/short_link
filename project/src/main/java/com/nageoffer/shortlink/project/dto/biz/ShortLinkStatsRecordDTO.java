@@ -21,4 +21,7 @@ public class ShortLinkStatsRecordDTO {
     private String uv;
     private Boolean uvFirstFlag;
     private Boolean uipFirstFlag;
+
+    /** 延迟队列消息唯一标识。 */
+    private String keys;
 }
