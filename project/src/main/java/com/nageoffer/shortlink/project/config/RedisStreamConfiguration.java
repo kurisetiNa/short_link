@@ -2,7 +2,6 @@ package com.nageoffer.shortlink.project.config;
 
 import com.nageoffer.shortlink.project.mq.consumer.ShortLinkStatsSaveConsumer;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -22,6 +21,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.SHORT_LINK_STATS_STREAM_GROUP_KEY;
+import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.SHORT_LINK_STATS_STREAM_TOPIC_KEY;
+
 /** Redis Stream 短链接统计消费配置。 */
 @Configuration
 @RequiredArgsConstructor
@@ -30,12 +32,6 @@ public class RedisStreamConfiguration {
     private final RedisConnectionFactory redisConnectionFactory;
     private final StringRedisTemplate stringRedisTemplate;
     private final ShortLinkStatsSaveConsumer shortLinkStatsSaveConsumer;
-
-    @Value("${spring.data.redis.channel-topic.short-link-stats}")
-    private String topic;
-
-    @Value("${spring.data.redis.channel-topic.short-link-stats-group}")
-    private String group;
 
     @Bean(destroyMethod = "shutdown")
     public ExecutorService asyncStreamConsumer() {
@@ -68,23 +64,28 @@ public class RedisStreamConfiguration {
         StreamMessageListenerContainer<String, MapRecord<String, String, String>> container =
                 StreamMessageListenerContainer.create(redisConnectionFactory, options);
         container.receive(
-                Consumer.from(group, "stats-consumer"),
-                StreamOffset.create(topic, ReadOffset.lastConsumed()),
+                Consumer.from(SHORT_LINK_STATS_STREAM_GROUP_KEY, "stats-consumer"),
+                StreamOffset.create(SHORT_LINK_STATS_STREAM_TOPIC_KEY, ReadOffset.lastConsumed()),
                 shortLinkStatsSaveConsumer);
         return container;
     }
 
     private void initializeConsumerGroup() {
-        RecordId initRecordId = stringRedisTemplate.opsForStream().add(topic, Map.of("type", "init"));
+        RecordId initRecordId = stringRedisTemplate.opsForStream()
+                .add(SHORT_LINK_STATS_STREAM_TOPIC_KEY, Map.of("type", "init"));
         try {
-            stringRedisTemplate.opsForStream().createGroup(topic, ReadOffset.latest(), group);
+            stringRedisTemplate.opsForStream().createGroup(
+                    SHORT_LINK_STATS_STREAM_TOPIC_KEY,
+                    ReadOffset.latest(),
+                    SHORT_LINK_STATS_STREAM_GROUP_KEY);
         } catch (RuntimeException ex) {
             if (ex.getMessage() == null || !ex.getMessage().contains("BUSYGROUP")) {
                 throw ex;
             }
         } finally {
             if (initRecordId != null) {
-                stringRedisTemplate.opsForStream().delete(topic, initRecordId.getValue());
+                stringRedisTemplate.opsForStream().delete(
+                        SHORT_LINK_STATS_STREAM_TOPIC_KEY, initRecordId.getValue());
             }
         }
     }

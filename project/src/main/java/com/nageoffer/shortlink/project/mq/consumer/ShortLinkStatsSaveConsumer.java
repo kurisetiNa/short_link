@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.LOCK_GID_UPDATE_KEY;
+import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.SHORT_LINK_STATS_STREAM_GROUP_KEY;
 import static com.nageoffer.shortlink.project.common.constant.ShortLinkConstant.AMAP_REMOTE_URL;
 
 /** 短链接访问统计 Redis Stream 消费者。 */
@@ -52,9 +53,6 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     private final StringRedisTemplate stringRedisTemplate;
     private final MessageQueueIdempotentHandler messageQueueIdempotentHandler;
     private final DelayShortLinkStatsProducer delayShortLinkStatsProducer;
-
-    @Value("${spring.data.redis.channel-topic.short-link-stats-group}")
-    private String group;
 
     @Value("${short-link.stats.locale.amap-key}")
     private String statsLocaleAmapKey;
@@ -99,7 +97,7 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     }
 
     private void acknowledgeAndDelete(String stream, MapRecord<String, String, String> message) {
-        stringRedisTemplate.opsForStream().acknowledge(group, message);
+        stringRedisTemplate.opsForStream().acknowledge(SHORT_LINK_STATS_STREAM_GROUP_KEY, message);
         stringRedisTemplate.opsForStream().delete(
                 Objects.requireNonNull(stream), message.getId().getValue());
     }

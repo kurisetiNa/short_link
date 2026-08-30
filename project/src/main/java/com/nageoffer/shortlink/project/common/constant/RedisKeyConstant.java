@@ -30,4 +30,10 @@ public class RedisKeyConstant {
     /** 短链接统计 UIP 缓存前缀。 */
     public static final String SHORT_LINK_STATS_UIP_KEY = "short-link:stats:uip:";
 
+    /** Redis Stream 短链接统计消息 Topic。 */
+    public static final String SHORT_LINK_STATS_STREAM_TOPIC_KEY = "short-link:stats-stream";
+
+    /** Redis Stream 短链接统计消费组。 */
+    public static final String SHORT_LINK_STATS_STREAM_GROUP_KEY = "short-link:stats-stream:only-group";
+
 }
