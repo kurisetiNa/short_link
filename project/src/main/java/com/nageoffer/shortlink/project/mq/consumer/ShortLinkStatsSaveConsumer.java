@@ -5,9 +5,11 @@ import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.nageoffer.shortlink.project.common.convention.exception.ServiceException;
 import com.nageoffer.shortlink.project.dao.entity.*;
 import com.nageoffer.shortlink.project.dao.mapper.*;
 import com.nageoffer.shortlink.project.dto.biz.ShortLinkStatsRecordDTO;
+import com.nageoffer.shortlink.project.mq.idempotent.MessageQueueIdempotentHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -47,6 +49,7 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     private final LinkStatsTodayMapper linkStatsTodayMapper;
     private final RedissonClient redissonClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final MessageQueueIdempotentHandler messageQueueIdempotentHandler;
 
     @Value("${spring.data.redis.channel-topic.short-link-stats-group}")
     private String group;
@@ -58,6 +61,14 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     public void onMessage(MapRecord<String, String, String> message) {
         String stream = message.getStream();
         RecordId id = message.getId();
+        String messageId = id.toString();
+        if (!messageQueueIdempotentHandler.isMessageProcessed(messageId)) {
+            if (messageQueueIdempotentHandler.isAccomplish(messageId)) {
+                acknowledgeAndDelete(stream, message);
+                return;
+            }
+            throw new ServiceException("消息未完成流程，需要消息队列重试");
+        }
         try {
             Map<String, String> values = message.getValue();
             ShortLinkStatsRecordDTO statsRecord = JSONUtil.toBean(
@@ -71,11 +82,24 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
             } else {
                 actualSaveShortLinkStats(fullShortUrl, statsRecord);
             }
-            stringRedisTemplate.opsForStream().acknowledge(group, message);
-            stringRedisTemplate.opsForStream().delete(Objects.requireNonNull(stream), id.getValue());
+            messageQueueIdempotentHandler.setAccomplish(messageId);
         } catch (Throwable ex) {
+            messageQueueIdempotentHandler.delMessageProcessed(messageId);
             log.error("Redis Stream 短链接统计消费异常, messageId={}", id, ex);
+            return;
         }
+        try {
+            acknowledgeAndDelete(stream, message);
+        } catch (Throwable ex) {
+            // 保留“已完成”标记，消息再次投递时只补做 ACK 和删除。
+            log.error("Redis Stream 短链接统计确认异常, messageId={}", id, ex);
+        }
+    }
+
+    private void acknowledgeAndDelete(String stream, MapRecord<String, String, String> message) {
+        stringRedisTemplate.opsForStream().acknowledge(group, message);
+        stringRedisTemplate.opsForStream().delete(
+                Objects.requireNonNull(stream), message.getId().getValue());
     }
 
     private void actualSaveShortLinkStats(String fullShortUrl, ShortLinkStatsRecordDTO statsRecord) {
