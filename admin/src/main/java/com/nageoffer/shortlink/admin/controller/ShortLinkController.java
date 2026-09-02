@@ -1,10 +1,10 @@
 package com.nageoffer.shortlink.admin.controller;
 
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 
-import com.nageoffer.shortlink.admin.remote.dto.ShortLinkRemoteService;
+import com.nageoffer.shortlink.admin.remote.ShortLinkActualRemoteService;
 import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkBatchCreateReqDTO;
 import com.nageoffer.shortlink.admin.remote.dto.req.ShortLinkPageReqDTO;
@@ -19,6 +19,7 @@ import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkBatchCreateRespDTO
 import com.nageoffer.shortlink.admin.toolkit.EasyExcelWebUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
+import lombok.RequiredArgsConstructor;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkPageRespDTO;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkStatsRespDTO;
 import com.nageoffer.shortlink.admin.remote.dto.resp.ShortLinkStatsAccessRecordRespDTO;
@@ -31,17 +32,14 @@ import java.util.List;
  * 短链接后管控制层
  */
 @RestController
+@RequiredArgsConstructor
 public class ShortLinkController {
 
-    /**
-     * 后续重构为springcloud feign调用
-     */
-    ShortLinkRemoteService shortLinkRemoteService=new ShortLinkRemoteService() {
-    };
+    private final ShortLinkActualRemoteService shortLinkActualRemoteService;
     @PostMapping("/api/shortlink/admin/v1/create")
     public Result<ShortLinkCreateRespDTO> createShortLink(@RequestBody ShortLinkCreateReqDTO requestParam){
 
-        return shortLinkRemoteService.createShortLink(requestParam);
+        return shortLinkActualRemoteService.createShortLink(requestParam);
     }
 
     /**
@@ -49,7 +47,7 @@ public class ShortLinkController {
      */
     @PostMapping("/api/shortlink/admin/v1/update")
     public Result<Void> updateShortLink(@RequestBody ShortLinkUpdateReqDTO requestParam){
-        return shortLinkRemoteService.updateShortLink(requestParam);
+        return shortLinkActualRemoteService.updateShortLink(requestParam);
     }
 
     /**
@@ -59,7 +57,7 @@ public class ShortLinkController {
     @PostMapping("/api/shortlink/admin/v1/create/batch")
     public void batchCreateShortLink(@RequestBody ShortLinkBatchCreateReqDTO requestParam,
                                      HttpServletResponse response) {
-        Result<ShortLinkBatchCreateRespDTO> result = shortLinkRemoteService.batchCreateShortLink(requestParam);
+        Result<ShortLinkBatchCreateRespDTO> result = shortLinkActualRemoteService.batchCreateShortLink(requestParam);
         if (result.isSuccess()) {
             List<ShortLinkBaseInfoRespDTO> baseLinkInfos = result.getData().getBaseLinkInfos();
             EasyExcelWebUtil.write(response, "批量创建短链接-SaaS短链接系统",
@@ -72,9 +70,9 @@ public class ShortLinkController {
      * 分页查询短链接
      */
     @GetMapping("/api/shortlink/admin/v1/page")
-    public Result<IPage<ShortLinkPageRespDTO>> pageShortLink(ShortLinkPageReqDTO requestParam) {
-
-        return shortLinkRemoteService.pageShortLink(requestParam);
+    public Result<Page<ShortLinkPageRespDTO>> pageShortLink(ShortLinkPageReqDTO requestParam) {
+        return shortLinkActualRemoteService.pageShortLink(requestParam.getGid(), requestParam.getOrderTag(),
+                requestParam.getCurrent(), requestParam.getSize());
     }
 
     /**
@@ -82,7 +80,8 @@ public class ShortLinkController {
      */
     @GetMapping("/api/shortlink/admin/v1/stats")
     public Result<ShortLinkStatsRespDTO> oneShortLinkStats(ShortLinkStatsReqDTO requestParam) {
-        return shortLinkRemoteService.oneShortLinkStats(requestParam);
+        return shortLinkActualRemoteService.oneShortLinkStats(requestParam.getFullShortUrl(), requestParam.getGid(),
+                requestParam.getStartDate(), requestParam.getEndDate());
     }
 
     /**
@@ -90,24 +89,26 @@ public class ShortLinkController {
      */
     @GetMapping("/api/shortlink/admin/v1/stats/group")
     public Result<ShortLinkStatsRespDTO> groupShortLinkStats(ShortLinkGroupStatsReqDTO requestParam) {
-        return shortLinkRemoteService.groupShortLinkStats(requestParam);
+        return shortLinkActualRemoteService.groupShortLinkStats(requestParam.getGid(), requestParam.getStartDate(), requestParam.getEndDate());
     }
 
     /**
      * 分页查询单个短链接访问记录。
      */
     @GetMapping("/api/shortlink/admin/v1/stats/accessRecord")
-    public Result<IPage<ShortLinkStatsAccessRecordRespDTO>> shortLinkStatsAccessRecord(
+    public Result<Page<ShortLinkStatsAccessRecordRespDTO>> shortLinkStatsAccessRecord(
             ShortLinkStatsAccessRecordReqDTO requestParam) {
-        return shortLinkRemoteService.shortLinkStatsAccessRecord(requestParam);
+        return shortLinkActualRemoteService.shortLinkStatsAccessRecord(requestParam.getFullShortUrl(), requestParam.getGid(),
+                requestParam.getStartDate(), requestParam.getEndDate(), requestParam.getCurrent(), requestParam.getSize());
     }
 
     /**
      * 分页查询分组内短链接访问记录。
      */
     @GetMapping("/api/shortlink/admin/v1/stats/accessRecord/group")
-    public Result<IPage<ShortLinkStatsAccessRecordRespDTO>> groupShortLinkStatsAccessRecord(
+    public Result<Page<ShortLinkStatsAccessRecordRespDTO>> groupShortLinkStatsAccessRecord(
             ShortLinkGroupStatsAccessRecordReqDTO requestParam) {
-        return shortLinkRemoteService.groupShortLinkStatsAccessRecord(requestParam);
+        return shortLinkActualRemoteService.groupShortLinkStatsAccessRecord(requestParam.getGid(), requestParam.getStartDate(),
+                requestParam.getEndDate(), requestParam.getCurrent(), requestParam.getSize());
     }
 }
